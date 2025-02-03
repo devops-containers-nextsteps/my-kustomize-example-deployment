@@ -320,6 +320,18 @@ spec:
         - containerPort: 8000
 ```
 
+### Port forwarding of the production deployment
+
+```
+kubectl port-forward svc/fastapi-crud 8001:80 -n production
+```
+
+Shows 
+```
+Forwarding from 127.0.0.1:8001 -> 8000
+Forwarding from [::1]:8001 -> 8000
+```
+
 #### 1. Check application status 
 ```
 argocd app get my-kustomize-example
@@ -380,8 +392,69 @@ port forwarding
 kubectl port-forward svc/fastapi-crud 8000:80 -n default
 ```
 
+#### 6. API Example Requests
 
-## Questions (Debugging & Troubleshooting)
+### Create an Item
+
+```bash
+curl -X 'POST' 'http://localhost:8001/items/' \
+     -H 'Content-Type: application/json' \
+     -d '{
+           "id": 1,
+           "name": "flyingcar",
+           "description": "A high-performance laptop",
+           "price": 12000000,
+           "quantity": 10
+         }'
+```
+
+### Retrieve an Item
+
+```bash
+curl 'http://localhost:8001/items/flyingcar' \
+  -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7' \
+  -H 'Accept-Language: en-US,en;q=0.9' \
+  -H 'Cache-Control: max-age=0' \
+  -H 'Connection: keep-alive' \
+  -H 'sec-ch-ua-platform: "macOS"'
+```
+
+Response:
+
+```
+{
+   "name":"flyingcar",
+   "description":"A high-performance laptop",
+   "price":1200000.0,
+   "tax":null
+}
+```
+
+### Check pod log 
+
+```
+$ kubectl logs -f fastapi-crud-7c8b4cf97d-dhtnn -n production
+```
+
+```
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51224 - "POST /items/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40988 - "GET /items/flyingcar HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40988 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:38168 - "GET /items/flyingcar HTTP/1.1" 200 OK
+```
+
+### Argo Deployment (Dev and Prod)
+
+![](./imgs/argo_deployment_ui_dev_and_prod.png)
+
+-------------------------
+
+# Questions 
+Debugging & Troubleshooting
 
 ### Questions1 : how to check if the cluster-ip is accessible form my local map ? 
 ```
