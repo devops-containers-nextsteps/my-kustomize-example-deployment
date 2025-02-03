@@ -219,6 +219,166 @@ This guide walks through the full setup of deploying a FastAPI CRUD application 
 
 ------------------
 
+## Stop Deployment
+
+To stop the deployment using Argo CD, you can delete the application managed by Argo CD. This will remove all Kubernetes resources created by the deployment.
+
+### Delete the Application Using Argo CD
+
+```bash
+argocd app delete my-kustomize-example
+```
+This will:
+
+Remove the application from Argo CD
+Delete all associated Kubernetes resources in the target namespace
+
+### Disable Auto-Sync Instead of Deleting
+
+If you want to stop deployments but keep the application in Argo CD, you can disable auto-sync instead of deleting the application:
+
+```
+argocd app set my-kustomize-example --sync-policy none
+```
+## Production Deployment
+
+```
+kubectl create namespace production
+```
+
+### Deploy on the "prod" namespace
+
+```
+argocd app create my-kustomize-example \
+  --repo https://github.com/devops-containers-nextsteps/my-kustomize-example-deployment.git \
+  --path overlays/prod \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace production
+```
+
+- PN:
+
+#### Q: Can You Use the Same Application Name in a Different Namespace?
+
+Error:
+```
+rpc error: code = InvalidArgument desc = existing application spec is different, use upsert flag to force update
+```
+
+No, in Argo CD, application names are global across the entire Argo CD instance. Even if you are deploying to a different Kubernetes namespace (e.g., production instead of default), Argo CD still sees "my-kustomize-example" as a single application.
+
+- Solution: Use --upsert flag or use different name
+
+argocd app create my-kustomize-example \
+  --repo https://github.com/devops-containers-nextsteps/my-kustomize-example-deployment.git \
+  --path overlays/prod \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace production \
+  --upsert
+
+or 
+
+```
+argocd app create my-kustomize-example-prod \
+  --repo https://github.com/devops-containers-nextsteps/my-kustomize-example-deployment.git \
+  --path overlays/prod \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace production
+
+```
+
+### Check status
+
+```
+$ argocd app get my-kustomize-example-prod  
+```
+![](./imgs/argo_cd_deployment_prod.png)
+
+### Sync status
+
+```
+$ argocd app sync my-kustomize-example-prod
+```
+
+![](./imgs/argo_cd_deployment_prod_ui.png)
+
+It is as per the deployment patch defined here: [prod/deployment-patch.yaml](https://github.com/devops-containers-nextsteps/my-kustomize-example-deployment/blob/main/overlays/prod/deployment-patch.yaml)
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-crud
+spec:
+  replicas: 3  # 3 replicas for production
+  template:
+    spec:
+      containers:
+      - name: fastapi-crud
+        image: docker4mlops/fastapi-crud:v1  # Use your Docker image here
+        ports:
+        - containerPort: 8000
+```
+
+#### 1. Check application status 
+```
+argocd app get my-kustomize-example
+```
+This will show:
+
+    Sync Status (e.g., Synced, OutOfSync)
+    Health Status (e.g., Healthy, Degraded)
+    Latest Sync Revision
+    Deployed Resources
+
+
+#### 2. Check Sync and Health Status in Real-time
+```
+argocd app sync-status my-kustomize-example
+
+```
+
+#### 3. Check Logs and Events
+
+- View Argo CD Application Events
+```
+kubectl get events -n argocd
+```
+
+- Check Pod Status in the Target Namespace
+```
+kubectl get pods -n default
+```
+
+- Check logs of a specific pod
+```
+kubectl logs -f <POD_NAME> -n default
+```
+or 
+```
+kubectl get pods -n default
+```
+
+#### 4. Check Deployment Status
+
+```
+kubectl get deployments -n default
+```
+or (for details)
+```
+kubectl get deployments -n default
+```
+
+#### 5. Check Service and Access Information
+
+```
+kubectl get svc -n default
+```
+
+port forwarding 
+```
+kubectl port-forward svc/fastapi-crud 8000:80 -n default
+```
 
 
 ## Questions (Debugging & Troubleshooting)
@@ -271,9 +431,23 @@ kubectl port-forward svc/fastapi-crud 8000:80 -n default
 Now, you can access the API from your host machine (Mac):
 
 ```
-curl http://localhost:8000
+     -H 'Content-Type: application/json' \
+     -d '{
+           "id": 1,
+           "name": "Laptop",
+           "description": "A high-performance laptop",
+           "price": 1200.50,
+           "quantity": 10
+         }'
+
 ```
 or
+
+```
+$ curl -X 'GET' 'http://localhost:8000/items/watch' -H 'Content-Type: application/json'
+```
+
+or 
 
 ```
 open http://localhost:8000/docs
@@ -384,6 +558,8 @@ argocd repo add https://github.com/devops-containers-nextsteps/my-kustomize-exam
 ```
 argocd repo list
 ```
+
+
 
 
 ## Appendix 
