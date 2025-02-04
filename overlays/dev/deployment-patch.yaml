@@ -8,6 +8,6 @@ spec:
     spec:
       containers:
       - name: fastapi-crud
-        image: docker4mlops/fastapi-crud:v1  # Use your Docker image here
+        image: docker4mlops/fastapi-crud:v2  # Use your Docker image here
         ports:
         - containerPort: 8000
